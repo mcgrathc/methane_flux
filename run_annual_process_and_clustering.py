@@ -26,7 +26,7 @@ text_size = 10
 sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", square=True, mask=mask, annot_kws={"size": text_size})
 plt.title('Correlation Plot')
 plt.tight_layout()
-plt.savefig('annual_max_correlation_plot.png', dpi = 300)
+plt.savefig('annual_sum_correlation_plot.png', dpi = 300)
 plt.show()
 
 # Assuming df_scaled is your scaled dataframe
@@ -62,7 +62,6 @@ for name, model in models:
 
 headers = ["Model", "Silhouette Score"]
 print(tabulate(results, headers=headers, tablefmt="grid"))
-
 
 # Fit clustering model
 kmeans = KMeans(n_clusters=2)
