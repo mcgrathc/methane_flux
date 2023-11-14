@@ -93,7 +93,7 @@ def plot_dendrograms(data, num_cols):
 
 
 # Load and pre-process data
-df_grouped, num_cols = load_and_preprocess('merged_data.csv', agg_function='sum')
+df_grouped, num_cols = load_and_preprocess('merged_data.csv', agg_function='max')
 
 # Standardize the data
 df_grouped_scaled = standardize_data(df_grouped, num_cols)
@@ -101,23 +101,6 @@ df_grouped_scaled = standardize_data(df_grouped, num_cols)
 # Perform PCA on the scaled data
 pca_model, reduced_df, loadings = perform_pca(df_grouped_scaled)
 
-# Call the functions to find optimal parameters and plot dendrograms
-n_components_list = range(2, 5)
-
-# Calculate silhouette scores for each n_components value
-silhouette_scores = []
-for n in n_components_list:
-    gmm = GaussianMixture(n_components=n, random_state=1)
-    labels = gmm.fit_predict(reduced_df)  # Assuming you have data_pca as the input data
-    score = silhouette_score(reduced_df, labels)
-    silhouette_scores.append(score)
-
-# Plot silhouette scores vs n_components
-plt.plot(n_components_list, silhouette_scores, 'bo-')
-plt.xlabel('Number of components')
-plt.ylabel('Silhouette score')
-plt.title('Silhouette Scores for Different Numbers of Components')
-plt.show()
 
 find_optimal_k(df_grouped_scaled, num_cols)
 find_optimal_n_components(df_grouped_scaled, num_cols)

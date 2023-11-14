@@ -2,9 +2,6 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
-from scipy.stats import linregress
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
@@ -12,7 +9,27 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def load_and_preprocess(filename, agg_function='min'):
+def load_and_preprocess(filename, agg_function='sum'):
+    """
+    Load a CSV file and preprocess it for data analysis.
+
+    This function reads a CSV file, converts the 'TIMESTAMP' column to datetime,
+    and aggregates data based on specified columns. It handles two types of columns:
+    flux columns and mean columns. For flux columns, data can be aggregated using a specified
+    function ('sum', 'mean', 'max', 'min'). For mean columns, the mean is used for aggregation.
+    NA values are filled with the aggregated values in their respective columns.
+
+    Parameters:
+    filename (str): The path to the CSV file to be loaded.
+    agg_function (str, optional): The aggregation function to be applied to flux columns.
+                                  Defaults to 'sum'. Options include 'sum', 'mean', 'max', 'min'.
+
+    Returns:
+    tuple: A tuple containing the following elements:
+        - DataFrame: The preprocessed and aggregated DataFrame.
+        - list: A list of column names that were used for flux and mean calculations.
+    """
+
     df = pd.read_csv(filename)
     df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'])
 
@@ -54,17 +71,84 @@ def load_and_preprocess(filename, agg_function='min'):
     return df_grouped, flux_cols + mean_cols
 
 
-
-
-
 def standardize_data(df_grouped, num_cols):
+    """
+    Standardize numerical columns in a DataFrame using StandardScaler.
+
+    This function takes a DataFrame and a list of column names representing numerical data.
+    It applies standardization to these columns, transforming them such that they have a mean of 0
+    and a standard deviation of 1. This is done using the StandardScaler from sklearn.preprocessing.
+    The standardized data is returned in a new DataFrame, preserving the original DataFrame.
+
+    Parameters:
+    df_grouped (DataFrame): The DataFrame containing the data to be standardized.
+    num_cols (list of str): A list of column names in the DataFrame representing numerical data
+                               that needs to be standardized.
+
+    Returns:
+    DataFrame: A copy of the input DataFrame with the specified numerical columns standardized.
+    """
+
     scaler = StandardScaler()
     df_grouped_scaled = df_grouped.copy()
     df_grouped_scaled[num_cols] = scaler.fit_transform(df_grouped[num_cols])
+
     return df_grouped_scaled
 
 
-def perform_pca(df_scaled, n_components=4):
+def plot_correlation_matrix(df, num_cols, agg_function='sum'):
+    """
+    Generates and saves a heatmap of the correlation matrix for the specified numeric columns in the DataFrame.
+
+    Parameters:
+    df (DataFrame): The DataFrame containing the data.
+    num_cols (list): List of numeric column names in the DataFrame for which the correlation matrix is to be computed.
+    agg_function (str, optional): Aggregation function used in data preprocessing, included in the filename of the saved plot. Defaults to 'sum'.
+    """
+
+    # Compute the correlation matrix
+    corr_matrix = df[num_cols].corr()
+
+    # Generate a mask for the upper triangle
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+
+    # Set the font scale for larger text
+    sns.set(font_scale=1.2)  # Increase the scale for larger annotation text
+
+    # Create the correlation plot
+    plt.figure(figsize=(12, 12))
+    ax = sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", square=True, mask=mask, vmin=-1, vmax=1)
+
+    # Remove grid lines and set background color to white
+    ax.grid(False)
+    ax.set_facecolor('white')  # Set the background color to white
+
+    plt.tight_layout()
+
+    # Save the figure
+    plt.savefig(f'{agg_function}_correlation_plot.png', dpi=300)
+
+
+def perform_pca(df_scaled, n_components=4, agg_function='sum'):
+    """
+    Perform Principal Component Analysis (PCA) on the given DataFrame.
+
+    This function applies PCA to a scaled DataFrame, reducing its dimensions to the number of
+    principal components specified. It returns the PCA model, a DataFrame containing the transformed
+    principal components, and the loadings for each component. Additionally, a heatmap of the loadings
+    is generated and saved as a PNG file, indicating the contribution of each feature to the principal components.
+
+    Parameters:
+    df_scaled (DataFrame): The scaled DataFrame on which PCA is to be performed. This DataFrame should contain only numerical columns.
+    n_components (int, optional): The number of principal components to keep. Defaults to 4.
+    agg_function (str, optional): The aggregation function used in data preprocessing, which will be part of the filename of the saved heatmap. Defaults to 'sum'.
+
+    Returns:
+    tuple: A tuple containing the following elements:
+        - PCA object: The fitted PCA model.
+        - DataFrame: A DataFrame with the principal components.
+        - DataFrame: A DataFrame containing the loadings of the features on each principal component.
+    """
     pca = PCA(n_components=n_components)
 
     # Numerical columns for PCA
@@ -87,28 +171,67 @@ def perform_pca(df_scaled, n_components=4):
     # Heatmap of loadings
     plt.figure(figsize=(10, 10))
     sns.set(font_scale=2)
-    text_size = 30
 
-    ax = sns.heatmap(loadings, annot=True, fmt='.2f', cmap='viridis')
+    ax = sns.heatmap(loadings, annot=True, fmt='.2f', cmap='viridis', vmin=-1, vmax=1)
 
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
 
     plt.tight_layout()
 
-    plt.savefig('annual_sum_loadings_plot.png', dpi=300)
+    plt.savefig(f'{agg_function}_annual_loadings_plot.png', dpi=300)
 
     return pca, principalDf, loadings
 
 
 def perform_clustering(df_scaled, algorithm, **kwargs):
-    """Perform clustering on the data."""
+    """
+    Perform clustering on a scaled DataFrame using a specified algorithm.
+
+    This function applies a clustering algorithm to the given DataFrame. The algorithm
+    and its parameters are specified by the user. It fits the algorithm to the data and
+    predicts the cluster for each instance in the DataFrame. The function returns an array
+    of cluster labels corresponding to each row in the DataFrame.
+
+    Parameters:
+    df_scaled (DataFrame): The scaled DataFrame to be clustered. This should be a DataFrame
+                           where features are scaled appropriately for the clustering algorithm.
+    algorithm (class): The clustering algorithm class from a library like sklearn.
+                       For example, sklearn.cluster.KMeans.
+    **kwargs: Additional keyword arguments specific to the clustering algorithm being used.
+              These arguments are passed directly to the algorithm.
+
+    Returns:
+    ndarray: An array of cluster labels for each instance in the DataFrame.
+    """
     model = algorithm(**kwargs)
     clusters = model.fit_predict(df_scaled)
     return clusters
 
 
-def generate_biplot(df, principalDf, clusters, pca, num_cols, cluster_type, algorithm_name):
+def generate_biplot(df, principalDf, clusters, pca, num_cols, cluster_type, algorithm_name, agg_function = 'sum'):
+    """
+    Generate a biplot for visualizing the clusters in the principal component space.
+
+    This function creates a biplot of the first two principal components, showing how different instances
+    (rows in the DataFrame) are grouped into clusters. The biplot also displays vectors representing the
+    original features, giving an indication of their contribution to the principal components. Clusters are
+    visualized with different colors and markers for clarity. The function saves the generated biplot as a PNG file.
+
+    Parameters:
+    df (DataFrame): Original DataFrame before scaling and PCA. Used for metadata and labels.
+    principalDf (DataFrame): DataFrame containing principal component values for each instance.
+    clusters (array-like): Array of cluster labels for each instance.
+    pca (PCA): The PCA model used for dimensionality reduction.
+    num_cols (list of str): List of column names representing the original numerical features.
+    cluster_type (str): The type of clustering performed (e.g., 'KMeans', 'DBSCAN').
+    algorithm_name (str): The name of the clustering algorithm used.
+    agg_function (str, optional): The aggregation function used in data preprocessing. This is included in the filename of the saved plot. Defaults to 'sum'.
+
+    Returns:
+    None: This function does not return a value but saves the biplot as a PNG file.
+    """
+
     # Create dataframe for biplot
     df_pca = pd.concat([principalDf, pd.Series(clusters, name='cluster')], axis=1)
 
@@ -153,105 +276,4 @@ def generate_biplot(df, principalDf, clusters, pca, num_cols, cluster_type, algo
     plt.legend(fontsize=16)
 
     # Save the plot with algorithm name in the title
-    plt.savefig(f'biplot_ann_sum_{algorithm_name}.png', dpi=300)
-
-
-def evaluate_clusters(df, algorithms):
-    silhouette_scores = []
-    davies_bouldin_scores = []
-    calinski_harabasz_scores = []
-
-    for alg in algorithms:
-        if alg['name'] == 'DBSCAN':
-            # For DBSCAN, you can use -1 for noise points and positive integers for clusters
-            labels = alg['algorithm'](**alg['args']).fit_predict(df)
-            silhouette = silhouette_score(df.values, labels)
-            db_index = davies_bouldin_score(df.values, labels)
-            ch_index = calinski_harabasz_score(df.values, labels)
-        else:
-            labels = alg['algorithm'](**alg['args']).fit_predict(df)
-            silhouette = silhouette_score(df.values, labels)
-            db_index = davies_bouldin_score(df.values, labels)
-            ch_index = calinski_harabasz_score(df.values, labels)
-
-        silhouette_scores.append([alg['name'], silhouette])
-        davies_bouldin_scores.append([alg['name'], db_index])
-        calinski_harabasz_scores.append([alg['name'], ch_index])
-
-    return silhouette_scores, davies_bouldin_scores, calinski_harabasz_scores
-
-
-def plot_cluster_scatter(df, num_cols):
-    # Fit clustering model
-    kmeans = KMeans(n_clusters=2)
-    clusters = kmeans.fit_predict(df[num_cols])
-
-    # Add cluster labels as a new column
-    df['cluster'] = clusters
-
-    # Create color map from cluster labels
-    cluster_colors = {0: 'red', 1: 'blue'}
-
-    # Map cluster labels to colors
-    df['cluster_color'] = df['cluster'].map(cluster_colors)
-
-    # Calculate linear regression for each cluster and store the models
-    cluster_models = {}
-    for cluster in df['cluster'].unique():
-        cluster_data = df[df['cluster'] == cluster]
-        slope, intercept, r, p, std_err = linregress(cluster_data['FCH4_F'], cluster_data['soc_0-5cm_mean'])
-        r_squared = r ** 2  # Calculate R-squared value
-        cluster_models[cluster] = (slope, intercept, r_squared)  # Store R-squared value as well
-
-    x = np.array([df['FCH4_F'].min(), df['FCH4_F'].max()])
-    cluster_lines = {}
-    for cluster in cluster_models:
-        slope, intercept, r_squared = cluster_models[cluster]  # Unpack the R-squared value
-        y = intercept + slope * x
-        cluster_lines[cluster] = (x, y)
-
-    # Create figure
-    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(7, 10))
-    for i, cluster in enumerate(df['cluster'].unique()):
-        # Plot each cluster separately
-        axs[i].scatter(df[df['cluster'] == cluster]['FCH4_F'],
-                       df[df['cluster'] == cluster]['soc_0-5cm_mean'],
-                       c=cluster_colors[cluster], s=100)
-        # Add trendline
-        x, y = cluster_lines[cluster]
-        axs[i].plot(x, y, linewidth=3, color=cluster_colors[cluster])
-        # Get R-squared value from the cluster_models dictionary
-        r_squared = cluster_models[cluster][2]
-        # Labels and titles, including R-squared annotation
-        axs[i].set_title(f'Cluster {cluster}', fontsize=18)
-        axs[i].set_xlabel('Annual Mean Flux (nmol CH$_4$ m$^{-2}$ s$^{-1}$)', fontsize=18)
-        axs[i].set_ylabel('Annual Mean Air Temperature (°C)', fontsize=18)
-
-        # Annotate R-squared value in the top right corner
-        axs[i].annotate(f'R² = {r_squared:.2f}', xy=(0.85, 0.9), xycoords='axes fraction', fontsize=12, color='black')
-
-        # Increase the font size of axis ticks
-        axs[i].tick_params(axis='both', labelsize=18)
-
-    # General plot adjustments
-    plt.tight_layout()
-    plt.show()
-
-
-def analyze_cluster_ranges(df, num_cols, algorithm_name, algorithm):
-    # Fit clustering model
-    clusters = algorithm.fit_predict(df[num_cols])
-
-    # Add cluster labels as a new column
-    df['cluster'] = clusters
-
-    # Create a DataFrame to store cluster statistics
-    cluster_stats = pd.DataFrame(columns=['Algorithm', 'Cluster', *num_cols])
-
-    # Calculate and store statistics for each cluster
-    for cluster in df['cluster'].unique():
-        cluster_data = df[df['cluster'] == cluster]
-        cluster_stats.loc[len(cluster_stats)] = [algorithm_name, cluster, *cluster_data[num_cols].min(), *cluster_data[num_cols].max()]
-
-    return cluster_stats
-
+    plt.savefig(f'{agg_function}_biplot_ann_{algorithm_name}.png', dpi=300)
