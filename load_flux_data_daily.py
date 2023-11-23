@@ -18,21 +18,35 @@ def process_and_merge_data(path):
     csv_dir = f'{path}flux_daily_raw\\'
     df = pd.DataFrame()
 
+    # # Iterate through the files in the raw flux data directory
+    # for filename in os.listdir(csv_dir):
+    #     if filename.endswith('.csv'):
+    #         # Read each CSV file
+    #         filepath = os.path.join(csv_dir, filename)
+    #         tmp_df = pd.read_csv(filepath)
+    #
+    #         # Extract site code from the filename
+    #         site_code = re.search(r'FLX_(.+)_FLUXNET', filename).group(1)
+    #
+    #         # Add the extracted site code as a new column to the temporary DataFrame
+    #         tmp_df['SITE_ID'] = site_code
+    #
+    #         # Append the temporary DataFrame to the main DataFrame
+    #         df = df.append(tmp_df, ignore_index=True)
     # Iterate through the files in the raw flux data directory
     for filename in os.listdir(csv_dir):
         if filename.endswith('.csv'):
             # Read each CSV file
             filepath = os.path.join(csv_dir, filename)
             tmp_df = pd.read_csv(filepath)
-
             # Extract site code from the filename
-            site_code = re.search(r'FLX_(.+)_FLUXNET', filename).group(1)
-
-            # Add the extracted site code as a new column to the temporary DataFrame
-            tmp_df['SITE_ID'] = site_code
-
-            # Append the temporary DataFrame to the main DataFrame
-            df = df.append(tmp_df, ignore_index=True)
+            site_code_match = re.search(r'FLX_(.+)_FLUXNET', filename)
+            if site_code_match:
+                site_code = site_code_match.group(1)
+                # Add the extracted site code as a new column to the temporary DataFrame
+                tmp_df['SITE_ID'] = site_code
+                # Append the temporary DataFrame to the main DataFrame
+                df = pd.concat([df, tmp_df], ignore_index=True)
 
     # Read the metadata CSV file
     metadata = pd.read_csv(f'{path}fluxnet_community_raw_data\\FLX_AA-Flx_CH4-META_20201112135337801132.csv')
@@ -75,6 +89,18 @@ def process_and_merge_data(path):
     # Filter extreme outliers in 'FCH4_F' column
     fch4_percentile = df['FCH4_F'].quantile(0.99)
     df['FCH4_F'] = df['FCH4_F'][df['FCH4_F'].notna() & (df['FCH4_F'] <= fch4_percentile)]
+
+    # # Calculate the IQR for 'FCH4_F' (used for metadata_v2.csv)
+    # Q1 = df['FCH4_F'].quantile(0.25)
+    # Q3 = df['FCH4_F'].quantile(0.75)
+    # IQR = Q3 - Q1
+    #
+    # # Define the bounds for outliers
+    # lower_bound = Q1 - 1.5 * IQR
+    # upper_bound = Q3 + 1.5 * IQR
+    #
+    # # Remove outliers
+    # df = df[(df['FCH4_F'] >= lower_bound) & (df['FCH4_F'] <= upper_bound)]
 
     return df
 

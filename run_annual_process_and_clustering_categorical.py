@@ -22,21 +22,21 @@ def process_and_cluster(agg_function='sum'):
     None: This function does not return a value but prints results and saves plots.
     """
     # Load and pre-process data
-    df_grouped, num_cols = load_and_preprocess('merged_data.csv', agg_function=agg_function)
-    df_grouped_scaled = standardize_data(df_grouped, num_cols)
+    df_grouped, df_encoded, num_cols, cat_col = load_and_preprocess('merged_data.csv', agg_function=agg_function)
+    df_grouped_scaled = standardize_data(df_grouped, df_encoded, num_cols)
 
     # Plot correlation matrix
     plot_correlation_matrix(df_grouped_scaled, num_cols, agg_function=agg_function)
 
     # Perform PCA
-    pca_model, reduced_df, loadings = perform_pca(df_grouped_scaled, n_components=4, agg_function=agg_function)
+    pca_model, reduced_df, loadings = perform_pca(df_grouped_scaled, n_components=4,agg_function=agg_function)
 
     # List of algorithms to try
     algorithms = [
         {'name': 'KMeans', 'algorithm': KMeans, 'args': {'n_clusters': 2}},
-        {'name': 'Hierarchical Clustering', 'algorithm': AgglomerativeClustering, 'args': {'n_clusters': 2}},
-        {'name': 'DBSCAN', 'algorithm': DBSCAN, 'args': {'eps': 2, 'min_samples': 5}},
-        {'name': 'Gaussian Mixture Models', 'algorithm': GaussianMixture, 'args': {'n_components': 3}},
+        {'name': 'Hierarchical Clustering', 'algorithm': AgglomerativeClustering, 'args': {'n_clusters': 5}},
+        {'name': 'DBSCAN', 'algorithm': DBSCAN, 'args': {'eps': 2, 'min_samples': 10}},
+        {'name': 'Gaussian Mixture Models', 'algorithm': GaussianMixture, 'args': {'n_components': 2}},
     ]
 
     # Try each algorithm
@@ -49,8 +49,8 @@ def process_and_cluster(agg_function='sum'):
     models = [
         ("KMeans", KMeans(n_clusters=2)),
         ("GMM", GaussianMixture(n_components=2, random_state=1)),
-        ("DBSCAN", DBSCAN(eps=2, min_samples=5)),
-        ("Agglomerative", AgglomerativeClustering(n_clusters=3))
+        ("DBSCAN", DBSCAN(eps=2, min_samples=10)),
+        ("Agglomerative", AgglomerativeClustering(n_clusters=5))
     ]
 
     results = []
@@ -64,7 +64,7 @@ def process_and_cluster(agg_function='sum'):
     results_df = pd.DataFrame(results, columns=["Model", "Silhouette Score"])
 
     # Save results to a CSV file
-    results_df.to_csv(f'{agg_function}_clustering_results.csv', index=False)
+    results_df.to_csv(f'{agg_function}_cat_clustering_results.csv', index=False)
 
 
 process_and_cluster(agg_function='sum')

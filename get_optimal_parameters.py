@@ -93,7 +93,7 @@ def plot_dendrograms(data, num_cols):
 
 
 # Load and pre-process data
-df_grouped, num_cols = load_and_preprocess('merged_data.csv', agg_function='max')
+df_grouped, num_cols = load_and_preprocess('merged_data_v2.csv', agg_function='max')
 
 # Standardize the data
 df_grouped_scaled = standardize_data(df_grouped, num_cols)

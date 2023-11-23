@@ -1,13 +1,13 @@
 from sklearn.cluster import KMeans
 import pandas as pd
 from annual_process_and_clustering_function import load_and_preprocess, standardize_data, perform_pca
-from rf_function import train_and_visualize_rf_with_hyperparam_tuning
+# Import the new XGBoost training function
+from xgb_function import train_and_visualize_xgb_with_hyperparam_tuning
 from random_forest_plotting_function import plot_feature_importance
-
 
 def process_and_visualize_data(agg_function):
     """
-    Processes data, performs clustering, trains random forest models,
+    Processes data, performs clustering, trains XGBoost models,
     and saves the feature importance and model metrics.
 
     Parameters:
@@ -38,7 +38,8 @@ def process_and_visualize_data(agg_function):
 
     for cluster in [0, 1]:
         df_cluster = df_grouped_scaled[df_grouped_scaled['cluster'] == cluster]
-        r2, mae, rmse, imp_df, best_params, top_feat = train_and_visualize_rf_with_hyperparam_tuning(
+        # Use the new XGBoost training function
+        r2, mae, rmse, imp_df, best_params, top_feat = train_and_visualize_xgb_with_hyperparam_tuning(
             df_cluster, flux_column='FCH4_F', X_columns=X_columns
         )
 
@@ -55,15 +56,14 @@ def process_and_visualize_data(agg_function):
 
     # Create and save metrics DataFrame
     metrics_df = pd.DataFrame(metrics_data)
-    metrics_filename = f'cluster_rf_model_metrics_{agg_function}.csv'
+    metrics_filename = f'cluster_xgb_model_metrics_{agg_function}.csv'
     metrics_df.to_csv(metrics_filename, index=False)
 
     # Plot and save feature importance
-    feature_importance_filename = f'feature_importance_rf_comparison_{agg_function}.png'
+    feature_importance_filename = f'feature_importance_xgb_comparison_{agg_function}.png'
     plot_feature_importance(importance_df, feature_importance_filename)
 
-
-# Proces and visualize rf results for all agg.
+# Process and visualize XGBoost results for all aggregation functions
 process_and_visualize_data('sum')
 process_and_visualize_data('mean')
 process_and_visualize_data('min')

@@ -1,6 +1,6 @@
 from sklearn.cluster import KMeans
 import pandas as pd
-from annual_process_and_clustering_function import load_and_preprocess, standardize_data, perform_pca
+from annual_process_and_clustering_function_categorical import load_and_preprocess, standardize_data, perform_pca
 from rf_function import train_and_visualize_rf_with_hyperparam_tuning
 from random_forest_plotting_function import plot_feature_importance
 
@@ -15,8 +15,9 @@ def process_and_visualize_data(agg_function):
     """
 
     # Load and preprocess data
-    df_grouped, num_cols = load_and_preprocess('merged_data.csv', agg_function=agg_function)
-    df_grouped_scaled = standardize_data(df_grouped, num_cols)
+    df_grouped, df_encoded, num_cols, cat_col, df_climate = load_and_preprocess('merged_data.csv', agg_function=agg_function)
+    df_grouped_scaled = standardize_data(df_grouped, df_encoded, num_cols)
+
 
     # Perform PCA
     pca_model, reduced_df, loadings = perform_pca(df_grouped_scaled)
@@ -28,9 +29,12 @@ def process_and_visualize_data(agg_function):
     # Add cluster labels
     df_grouped_scaled['cluster'] = clusters
 
-    X_columns = ['P_F', 'TA_F', 'WTD_F', 'PA_F', 'G_F', 'H_F', 'NEE_F',
-                 'bdod_0-5cm_mean', 'cec_0-5cm_mean',
-                 'phh2o_0-5cm_mean', 'soc_0-5cm_mean', 'nitrogen_0-5cm_mean']
+    X_columns = ['P_F', 'TA_F', 'WTD_F', 'PA_F', 'G_F', 'H_F',
+       'NEE_F', 'bdod_0-5cm_mean', 'cec_0-5cm_mean', 'phh2o_0-5cm_mean',
+       'soc_0-5cm_mean', 'nitrogen_0-5cm_mean','KOPPEN_Af',
+       'KOPPEN_Am', 'KOPPEN_Aw', 'KOPPEN_Bsh', 'KOPPEN_Cfa', 'KOPPEN_Cfb',
+       'KOPPEN_Csa', 'KOPPEN_Cwa', 'KOPPEN_Cwc', 'KOPPEN_Dfa', 'KOPPEN_Dfb',
+       'KOPPEN_Dfc', 'KOPPEN_Dfd', 'KOPPEN_Dwa', 'KOPPEN_Dwc', 'KOPPEN_ET']
 
     # Process each cluster and collect metrics
     metrics_data = {'Cluster': [], 'R2': [], 'MAE': [], 'RMSE': []}
@@ -55,11 +59,11 @@ def process_and_visualize_data(agg_function):
 
     # Create and save metrics DataFrame
     metrics_df = pd.DataFrame(metrics_data)
-    metrics_filename = f'cluster_rf_model_metrics_{agg_function}.csv'
+    metrics_filename = f'cluster_cat_rf_model_metrics_{agg_function}.csv'
     metrics_df.to_csv(metrics_filename, index=False)
 
     # Plot and save feature importance
-    feature_importance_filename = f'feature_importance_rf_comparison_{agg_function}.png'
+    feature_importance_filename = f'feature_importance__cat_rf_comparison_{agg_function}.png'
     plot_feature_importance(importance_df, feature_importance_filename)
 
 
