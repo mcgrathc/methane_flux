@@ -41,21 +41,16 @@ def load_and_preprocess(filename, agg_function='sum'):
                  'bdod_0-5cm_mean', 'cec_0-5cm_mean',
                  'phh2o_0-5cm_mean', 'soc_0-5cm_mean', 'nitrogen_0-5cm_mean']
 
-    cat_col = ['KOPPEN']
-    # One-hot encode categorical columns
-    enc = OneHotEncoder()
-    df_encoded = pd.DataFrame(
-        enc.fit_transform(df[cat_col]).toarray(),
-        columns=enc.get_feature_names_out(cat_col)
-    )
-
     # Use agg() to specify how you want to aggregate each column
     aggregation_functions = {col: 'mean' for col in mean_cols}
     aggregation_functions.update({col: agg_function for col in flux_cols})
 
-    df_grouped = (df.groupby([df['TIMESTAMP'].dt.to_period('Y'), 'SITE_NAME'])
+    df_grouped = (df.groupby([df['TIMESTAMP'].dt.to_period('Y'), 'SITE_ID'])
                   .agg(aggregation_functions)
                   .reset_index())
+
+    # Merge the 'KOPPEN' column with df_grouped
+    df_grouped = df_grouped.merge(df[['SITE_ID', 'KOPPEN']].drop_duplicates(), on='SITE_ID', how='left')
 
     # Fill NA values in mean_cols with the mean of the respective columns
     for col in mean_cols:
@@ -76,12 +71,10 @@ def load_and_preprocess(filename, agg_function='sum'):
 
         df_grouped[col] = df_grouped[col].fillna(fill_value)
 
-    df_climate = df['KOPPEN']
-
-    return df_grouped, df_encoded, flux_cols + mean_cols, cat_col, df_climate
+    return df_grouped, flux_cols + mean_cols
 
 
-def standardize_data(df_grouped, df_encoded, num_cols):
+def standardize_data(df_grouped, num_cols):
     """
     Standardize numerical columns in a DataFrame using StandardScaler.
 
@@ -103,14 +96,7 @@ def standardize_data(df_grouped, df_encoded, num_cols):
     df_grouped_scaled = df_grouped.copy()
     df_grouped_scaled[num_cols] = scaler.fit_transform(df_grouped[num_cols])
 
-    # Reset index to ensure proper alignment
-    df_grouped.reset_index(inplace=True)
-    df_encoded.reset_index(drop=True, inplace=True)
-
-
-    df_grouped_enc_scl = df_grouped_scaled.join(df_encoded)
-
-    return df_grouped_enc_scl
+    return df_grouped_scaled
 
 
 def plot_correlation_matrix(df, num_cols, agg_function='sum'):
@@ -146,19 +132,19 @@ def plot_correlation_matrix(df, num_cols, agg_function='sum'):
     plt.savefig(f'{agg_function}_cat_correlation_plot.png', dpi=300)
 
 
-def perform_pca(df_scaled, n_components=4, agg_function='sum'):
+def perform_pca(df, n_components=4, agg_function='sum'):
     """
     Perform Principal Component Analysis (PCA) on the given DataFrame.
 
-    This function applies PCA to a scaled DataFrame, reducing its dimensions to the number of
-    principal components specified. It returns the PCA model, a DataFrame containing the transformed
-    principal components, and the loadings for each component. Additionally, a heatmap of the loadings
-    is generated and saved as a PNG file, indicating the contribution of each feature to the principal components.
+    This function applies PCA to a DataFrame, reducing its dimensions to the number of
+    principal components specified. It handles categorical columns by one-hot encoding.
+    The function returns the PCA model, a DataFrame containing the transformed principal components,
+    and the loadings for each component. Additionally, a heatmap of the loadings is generated and saved.
 
     Parameters:
-    df_scaled (DataFrame): The scaled DataFrame on which PCA is to be performed. This DataFrame should contain only numerical columns.
+    df (DataFrame): The DataFrame on which PCA is to be performed. 'TIMESTAMP' and 'SITE_ID' should be excluded.
     n_components (int, optional): The number of principal components to keep. Defaults to 4.
-    agg_function (str, optional): The aggregation function used in data preprocessing, which will be part of the filename of the saved heatmap. Defaults to 'sum'.
+    agg_function (str, optional): The aggregation function used in data preprocessing, part of the filename for the saved heatmap.
 
     Returns:
     tuple: A tuple containing the following elements:
@@ -166,13 +152,23 @@ def perform_pca(df_scaled, n_components=4, agg_function='sum'):
         - DataFrame: A DataFrame with the principal components.
         - DataFrame: A DataFrame containing the loadings of the features on each principal component.
     """
+
+    # Drop 'TIMESTAMP' and 'SITE_ID'
+    df = df.drop(columns=['TIMESTAMP', 'SITE_ID'])
+
+    # Handle 'KOPPEN' categorical column
+    categorical_columns = ['KOPPEN']
+    encoder = OneHotEncoder()
+    encoded = encoder.fit_transform(df[categorical_columns]).toarray()
+    encoded_df = pd.DataFrame(encoded, columns=encoder.get_feature_names_out(categorical_columns))
+
+    # Drop original categorical columns and concatenate encoded columns
+    df = df.drop(columns=categorical_columns)
+    df = pd.concat([df.reset_index(drop=True), encoded_df], axis=1)
+
+    # Perform PCA
     pca = PCA(n_components=n_components)
-
-    # Numerical columns for PCA
-    df_scaled = df_scaled.select_dtypes(include=[np.number])
-
-    principalComponents = pca.fit_transform(df_scaled)
-
+    principalComponents = pca.fit_transform(df)
     principalDf = pd.DataFrame(data=principalComponents,
                                columns=[f'PC{i}' for i in range(1, n_components + 1)])
 
@@ -183,22 +179,18 @@ def perform_pca(df_scaled, n_components=4, agg_function='sum'):
     loadings = pd.DataFrame(pca.components_.T,
                             columns=[f'PC{i} ({ev:.0%})'
                                      for i, ev in enumerate(explained_variance, 1)],
-                            index=df_scaled.columns)
+                            index=df.columns)
 
     # Heatmap of loadings
     plt.figure(figsize=(10, 10))
     sns.set(font_scale=2)
-
     ax = sns.heatmap(loadings, annot=True, fmt='.2f', cmap='viridis', vmin=-1, vmax=1)
-
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
-
     plt.tight_layout()
+    plt.savefig(f'{agg_function}_cat_pca_loadings_plot.png', dpi=300)
 
-    plt.savefig(f'{agg_function}_cat_annual_loadings_plot.png', dpi=300)
-
-    return pca, principalDf, loadings
+    return pca, principalDf, loadings, df
 
 
 def perform_clustering(df_scaled, algorithm, **kwargs):
@@ -226,72 +218,77 @@ def perform_clustering(df_scaled, algorithm, **kwargs):
     return clusters
 
 
-def generate_biplot(df, principalDf, clusters, pca, num_cols, cluster_type, algorithm_name, agg_function = 'sum'):
+def generate_biplot(df, principalDf, clusters, pca, num_cols, koppen_labels, cluster_type, algorithm_name,
+                    agg_function='sum'):
     """
-    Generate a biplot for visualizing the clusters in the principal component space.
-
-    This function creates a biplot of the first two principal components, showing how different instances
-    (rows in the DataFrame) are grouped into clusters. The biplot also displays vectors representing the
-    original features, giving an indication of their contribution to the principal components. Clusters are
-    visualized with different colors and markers for clarity. The function saves the generated biplot as a PNG file.
+    Generate a biplot for visualizing the clusters in the principal component space, coloring dots by 'KOPPEN' labels.
 
     Parameters:
-    df (DataFrame): Original DataFrame before scaling and PCA. Used for metadata and labels.
+    df (DataFrame): Original DataFrame before scaling and PCA.
     principalDf (DataFrame): DataFrame containing principal component values for each instance.
     clusters (array-like): Array of cluster labels for each instance.
     pca (PCA): The PCA model used for dimensionality reduction.
     num_cols (list of str): List of column names representing the original numerical features.
-    cluster_type (str): The type of clustering performed (e.g., 'KMeans', 'DBSCAN').
+    koppen_labels (Series): The 'KOPPEN' labels for coloring the dots.
+    cluster_type (str): The type of clustering performed.
     algorithm_name (str): The name of the clustering algorithm used.
-    agg_function (str, optional): The aggregation function used in data preprocessing. This is included in the filename of the saved plot. Defaults to 'sum'.
+    agg_function (str, optional): Aggregation function used in data preprocessing.
 
     Returns:
     None: This function does not return a value but saves the biplot as a PNG file.
     """
 
+    # Köppen Description Dictionary
+    koppen_descriptions = {
+        'Dfc': 'Subarctic or boreal (taiga), cool summer',
+        'Cfb': 'Warm-temperate, fully humid, warm summer',
+        'Csa': 'Mediterranean, dry hot summer',
+        'Cfa': 'Humid subtropical, no dry season, hot summer',
+        'Dfb': 'Warm-summer humid continental, no dry season, warm summer',
+        'Dfa': 'Hot-summer humid continental, no dry season, hot summer',
+        'Dwc': 'Subarctic or boreal (taiga), dry winter, cool summer',
+        'ET': 'Tundra, extremely cold, warmest month below 10°C',
+        'Am': 'Tropical monsoon, short dry season',
+        'Cwa': 'Humid subtropical, dry winter, hot summer',
+        'Aw': 'Tropical savanna, dry winter',
+        'Dfd': 'Subarctic or boreal (taiga), dry winter, extremely cold winter',
+        'Af': 'Tropical rainforest, no dry season',
+        'Cwc': 'Subarctic or boreal (taiga), dry winter, cool summer',
+        'Dwa': 'Hot-summer humid continental, dry winter',
+        'Bsh': 'Semi-arid (steppe), hot and dry'
+    }
+
     # Create dataframe for biplot
-    df_pca = pd.concat([principalDf, pd.Series(clusters, name='cluster')], axis=1)
-
+    df_pca = pd.concat([principalDf, pd.Series(clusters, name='cluster'), koppen_labels.reset_index(drop=True)], axis=1)
+    # Map the descriptions to the DataFrame
+    df_pca['KOPPEN_Description'] = df_pca['KOPPEN'].map(koppen_descriptions)
     # Define a color palette suitable for colorblindness
-    cud_palette = sns.color_palette("colorblind", n_colors=7)
-    cluster_markers = ['o', 's', '^', 'D', 'v', '>', '<']
-
-    # Set larger font sizes
-    plt.rcParams.update({'font.size': 16})  # Adjust the font size as needed
+    cud_palette = sns.color_palette("tab20", n_colors=len(df_pca['KOPPEN_Description'].unique()))
 
     # Generate biplot
-    plt.figure(figsize=(12, 8))
-    sns.set_style("whitegrid")  # Set the style to whitegrid
+    plt.figure(figsize=(16, 10))
+    sns.set_style("whitegrid")
 
-    # Loop through clusters and set color and marker style based on cluster index
-    for i, cluster in enumerate(np.unique(clusters)):
-        cluster_data = df_pca[df_pca['cluster'] == cluster]
-        plt.scatter(cluster_data['PC1'], cluster_data['PC2'], color=cud_palette[i], marker=cluster_markers[i], label=f'Cluster {cluster}')
+    # Scatter plot colored by 'KOPPEN' labels
+    sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='KOPPEN_Description', palette=cud_palette, style='cluster', s=200)
 
-    plt.title(f'Biplot of Soil Data Clusters: {cluster_type}', fontsize=21)  # Larger title font size
-
-    # Add all feature vectors with adjusted scaling for longer vectors
-    vectors = pca.components_.T * np.sqrt(pca.explained_variance_) * 4.0  # Adjust the scaling factor for longer vectors
-
-    for i, v in enumerate(vectors):
+    # Add feature vectors with adjusted scaling for longer vectors
+    vectors = pca.components_.T * np.sqrt(pca.explained_variance_) * 4.0
+    for i, v in enumerate(vectors[:len(num_cols)]):
         plt.arrow(0, 0, v[0], v[1], head_width=0.1, head_length=0.1, linewidth=2, color='darkgray')
-        # Label the vectors with variable names with slightly increased offsets
-        offset_x = 0.08 if v[0] > 0 else -0.08
-        offset_y = 0.08 if v[1] > 0 else -0.08
-        plt.text(v[0] * 1.2 + offset_x, v[1] * 1.2 + offset_y, num_cols[i], fontsize=14, color='black', ha='center',
-                 va='center',
-                 bbox=dict(boxstyle='round', facecolor='white', edgecolor='none'))
+        plt.text(v[0], v[1], num_cols[i], fontsize=14, color='black', ha='center', va='center')
 
-    plt.xlabel(f'Principal Component 1 ({pca.explained_variance_ratio_[0] * 100:.2f}%)', fontsize=21)  # Larger label font size
-    plt.ylabel(f'Principal Component 2 ({pca.explained_variance_ratio_[1] * 100:.2f}%)', fontsize=21)  # Larger label font size
+    # Set plot title and labels
+    plt.title(f'Biplot of Soil Data Clusters: {cluster_type} ({algorithm_name})', fontsize=21)
+    plt.xlabel(f'Principal Component 1 ({pca.explained_variance_ratio_[0] * 100:.2f}%)', fontsize=21)
+    plt.ylabel(f'Principal Component 2 ({pca.explained_variance_ratio_[1] * 100:.2f}%)', fontsize=21)
 
-    plt.gca().set_facecolor('white')  # Set the background to white
-
+    plt.gca().set_facecolor('white')
+    plt.legend(scatterpoints=1, frameon=True, labelspacing=0.5, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=12)
     plt.tight_layout()
 
-    # Create a legend for clusters with larger font size
-    plt.legend(fontsize=16)
+    # Save the plot
+    plt.savefig(f'{agg_function}_biplot_cat_{algorithm_name}.png', dpi=300)
 
-    # Save the plot with algorithm name in the title
-    plt.savefig(f'{agg_function}_biplot_cat_ann_{algorithm_name}.png', dpi=300)
+
 

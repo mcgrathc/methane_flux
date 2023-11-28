@@ -6,7 +6,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import DBSCAN
 from scipy.cluster.hierarchy import dendrogram, linkage
-from annual_process_and_clustering_function import standardize_data, perform_pca, load_and_preprocess
+from annual_process_and_clustering_function_categorical import standardize_data, perform_pca, load_and_preprocess
 
 
 # Define a function to find the optimal K for KMeans and K-Medoids
@@ -93,16 +93,14 @@ def plot_dendrograms(data, num_cols):
 
 
 # Load and pre-process data
-df_grouped, num_cols = load_and_preprocess('merged_data.csv', agg_function='max')
+df_grouped, num_cols, = load_and_preprocess('merged_data.csv', agg_function=agg_function)
 
-# Standardize the data
 df_grouped_scaled = standardize_data(df_grouped, num_cols)
 
 # Perform PCA on the scaled data
-pca_model, reduced_df, loadings = perform_pca(df_grouped_scaled)
+pca_model, reduced_df, loadings, df = perform_pca(df_grouped_scaled, n_components=4, agg_function=agg_function)
 
-
-find_optimal_k(df_grouped_scaled, num_cols)
-find_optimal_n_components(df_grouped_scaled, num_cols)
-find_optimal_eps_min_samples(df_grouped_scaled, num_cols)
-plot_dendrograms(df_grouped_scaled, num_cols)
+find_optimal_k(df, num_cols)
+find_optimal_n_components(df, num_cols)
+find_optimal_eps_min_samples(df, num_cols)
+plot_dendrograms(df, num_cols)
