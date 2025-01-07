@@ -1,8 +1,7 @@
 from sklearn.cluster import KMeans
 import pandas as pd
 from annual_process_and_clustering_function import load_and_preprocess, standardize_data, perform_pca
-# Assuming you have a similar function for XGBoost training
-from xgb_function import train_and_visualize_xgb_with_hyperparam_tuning
+from rf_function import train_and_visualize_rf_with_hyperparam_tuning
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -10,7 +9,7 @@ import seaborn as sns
 
 def process_and_visualize_data(agg_function):
     """
-    Processes data, performs clustering, trains XGBoost models,
+    Processes data, performs clustering, trains random forest models,
     and saves the feature importance and model metrics.
 
     Parameters:
@@ -31,11 +30,15 @@ def process_and_visualize_data(agg_function):
     # Add cluster labels
     df_grouped_scaled['cluster'] = clusters
 
-    X_columns = ['P_F', 'TA_F', 'WTD_F', 'PA_F', 'G_F', 'H_F', 'NEE_F']
-                # 'bdod_0-5cm_mean', 'cec_0-5cm_mean',
-                # 'phh2o_0-5cm_mean', 'soc_0-5cm_mean', 'nitrogen_0-5cm_mean']
+    X_columns = ['P_F', 'TA_F', 'WTD_F', 'PA_F', 'G_F', 'H_F', 'NEE_F',
+                'bdod_0-5cm_mean', 'cec_0-5cm_mean',
+                'phh2o_0-5cm_mean', 'soc_0-5cm_mean', 'nitrogen_0-5cm_mean']
 
-    # Initialize list to store importance dataframes and metrics data
+    # Initialize lists to store global min and max values for the diagonal line
+    all_y_test = []
+    all_predictions = []
+
+    # Initialize list to store importance dataframes
     metrics_data = {'Cluster': [], 'R2': [], 'MAE': [], 'RMSE': []}
     importance_dfs = []
 
@@ -49,8 +52,8 @@ def process_and_visualize_data(agg_function):
         y = df_cluster['FCH4_F']
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        # Train the XGBoost model and get predictions
-        r2, mae, rmse, imp_df, best_params, best_xgb = train_and_visualize_xgb_with_hyperparam_tuning(
+        # Train the model and get predictions
+        r2, mae, rmse, imp_df, best_params, top_feat, best_rf = train_and_visualize_rf_with_hyperparam_tuning(
             X_train, y_train, X_columns
         )
 
@@ -58,15 +61,17 @@ def process_and_visualize_data(agg_function):
         metrics_data['R2'].append(r2)
         metrics_data['MAE'].append(mae)
         metrics_data['RMSE'].append(rmse)
-        importance_dfs.append(imp_df)  # Assuming you want to collect feature importances for further analysis
 
     # Create and save metrics DataFrame
     metrics_df = pd.DataFrame(metrics_data)
-    metrics_filename = f'manuscript\\cluster_xgb_model_metrics_{agg_function}_no_soil.csv'
+    metrics_filename = f'manuscript\\cluster_rf_model_metrics_{agg_function}.csv'
     metrics_df.to_csv(metrics_filename, index=False)
 
-# Process and visualize XGB results for all aggregation functions.
+
+# Proces and visualize rf results for all agg.
 process_and_visualize_data('sum')
 process_and_visualize_data('mean')
 process_and_visualize_data('min')
 process_and_visualize_data('max')
+
+

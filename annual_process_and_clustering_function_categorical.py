@@ -37,9 +37,9 @@ def load_and_preprocess(filename, agg_function='sum'):
     flux_cols = ['FCH4_F']
 
     # Columns for which you want to get the mean
-    mean_cols = ['P_F', 'TA_F', 'WTD_F', 'PA_F', 'G_F', 'H_F', 'NEE_F',
-                 'bdod_0-5cm_mean', 'cec_0-5cm_mean',
-                 'phh2o_0-5cm_mean', 'soc_0-5cm_mean', 'nitrogen_0-5cm_mean']
+    mean_cols = ['P_F', 'TA_F', 'WTD_F', 'PA_F', 'G_F', 'H_F', 'NEE_F']
+                # 'bdod_0-5cm_mean', 'cec_0-5cm_mean',
+                # 'phh2o_0-5cm_mean', 'soc_0-5cm_mean', 'nitrogen_0-5cm_mean']
 
     # Use agg() to specify how you want to aggregate each column
     aggregation_functions = {col: 'mean' for col in mean_cols}
@@ -129,7 +129,7 @@ def plot_correlation_matrix(df, num_cols, agg_function='sum'):
     plt.tight_layout()
 
     # Save the figure
-    plt.savefig(f'{agg_function}_cat_correlation_plot.png', dpi=300)
+    plt.savefig(f'{agg_function}_cat_correlation_plot_no_soil.png', dpi=300)
 
 
 def perform_pca(df, n_components=4, agg_function='sum'):
@@ -188,7 +188,7 @@ def perform_pca(df, n_components=4, agg_function='sum'):
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     plt.tight_layout()
-    plt.savefig(f'{agg_function}_cat_pca_loadings_plot.png', dpi=300)
+    plt.savefig(f'{agg_function}_cat_pca_loadings_plot_no_soil.png', dpi=300)
 
     return pca, principalDf, loadings, df
 
@@ -218,7 +218,7 @@ def perform_clustering(df_scaled, algorithm, **kwargs):
     return clusters
 
 
-def generate_biplot(df, principalDf, clusters, pca, num_cols, koppen_labels, cluster_type, algorithm_name,
+def generate_biplot(df, principalDf, clusters, pca, num_cols, koppen_labels, algorithm_name,
                     agg_function='sum'):
     """
     Generate a biplot for visualizing the clusters in the principal component space, coloring dots by 'KOPPEN' labels.
@@ -240,22 +240,22 @@ def generate_biplot(df, principalDf, clusters, pca, num_cols, koppen_labels, clu
 
     # Köppen Description Dictionary
     koppen_descriptions = {
-        'Dfc': 'Subarctic or boreal (taiga), cool summer',
-        'Cfb': 'Warm-temperate, fully humid, warm summer',
-        'Csa': 'Mediterranean, dry hot summer',
-        'Cfa': 'Humid subtropical, no dry season, hot summer',
-        'Dfb': 'Warm-summer humid continental, no dry season, warm summer',
-        'Dfa': 'Hot-summer humid continental, no dry season, hot summer',
-        'Dwc': 'Subarctic or boreal (taiga), dry winter, cool summer',
-        'ET': 'Tundra, extremely cold, warmest month below 10°C',
-        'Am': 'Tropical monsoon, short dry season',
-        'Cwa': 'Humid subtropical, dry winter, hot summer',
-        'Aw': 'Tropical savanna, dry winter',
-        'Dfd': 'Subarctic or boreal (taiga), dry winter, extremely cold winter',
-        'Af': 'Tropical rainforest, no dry season',
-        'Cwc': 'Subarctic or boreal (taiga), dry winter, cool summer',
-        'Dwa': 'Hot-summer humid continental, dry winter',
-        'Bsh': 'Semi-arid (steppe), hot and dry'
+        'Dfc': 'Continental',
+        'Cfb': 'Temperate',
+        'Csa': 'Temperate',
+        'Cfa': 'Temperate',
+        'Dfb': 'Continental',
+        'Dfa': 'Continental',
+        'Dwc': 'Continental',
+        'ET': 'Polar',
+        'Am': 'Tropical',
+        'Cwa': 'Temperate',
+        'Aw': 'Tropical',
+        'Dfd': 'Continental',
+        'Af': 'Tropical',
+        'Cwc': 'Temperate',
+        'Dwa': 'Continental',
+        'Bsh': 'Arid'
     }
 
     # Create dataframe for biplot
@@ -263,10 +263,10 @@ def generate_biplot(df, principalDf, clusters, pca, num_cols, koppen_labels, clu
     # Map the descriptions to the DataFrame
     df_pca['KOPPEN_Description'] = df_pca['KOPPEN'].map(koppen_descriptions)
     # Define a color palette suitable for colorblindness
-    cud_palette = sns.color_palette("tab20", n_colors=len(df_pca['KOPPEN_Description'].unique()))
+    cud_palette = sns.color_palette("colorblind", n_colors=len(df_pca['KOPPEN_Description'].unique()))
 
     # Generate biplot
-    plt.figure(figsize=(16, 10))
+    plt.figure(figsize=(12, 10))
     sns.set_style("whitegrid")
 
     # Scatter plot colored by 'KOPPEN' labels
@@ -275,20 +275,20 @@ def generate_biplot(df, principalDf, clusters, pca, num_cols, koppen_labels, clu
     # Add feature vectors with adjusted scaling for longer vectors
     vectors = pca.components_.T * np.sqrt(pca.explained_variance_) * 4.0
     for i, v in enumerate(vectors[:len(num_cols)]):
-        plt.arrow(0, 0, v[0], v[1], head_width=0.1, head_length=0.1, linewidth=2, color='darkgray')
-        plt.text(v[0], v[1], num_cols[i], fontsize=14, color='black', ha='center', va='center')
+        plt.arrow(0, 0, v[0], v[1], head_width=0.1, head_length=0.1, linewidth=4, color='darkgray')
+        plt.text(v[0], v[1], num_cols[i], fontsize=12, color='black', ha='right', va='bottom',
+                 bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.3'))
 
     # Set plot title and labels
-    plt.title(f'Biplot of Soil Data Clusters: {cluster_type} ({algorithm_name})', fontsize=21)
-    plt.xlabel(f'Principal Component 1 ({pca.explained_variance_ratio_[0] * 100:.2f}%)', fontsize=21)
-    plt.ylabel(f'Principal Component 2 ({pca.explained_variance_ratio_[1] * 100:.2f}%)', fontsize=21)
+    plt.xlabel(f'Principal Component 1 ({pca.explained_variance_ratio_[0] * 100:.2f}%)', fontsize=24)
+    plt.ylabel(f'Principal Component 2 ({pca.explained_variance_ratio_[1] * 100:.2f}%)', fontsize=24)
 
     plt.gca().set_facecolor('white')
-    plt.legend(scatterpoints=1, frameon=True, labelspacing=0.5, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=12)
+    plt.legend(scatterpoints=1, frameon=True, labelspacing=0.5, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=18)
     plt.tight_layout()
 
     # Save the plot
-    plt.savefig(f'{agg_function}_biplot_cat_{algorithm_name}.png', dpi=300)
+    plt.savefig(f'{agg_function}_biplot_cat_{algorithm_name}_no_soil.png', dpi=300)
 
 
 

@@ -2,12 +2,14 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-def plot_feature_importance(importance_df, filename='feature_importance_comparison.png'):
+
+def plot_feature_importance(importance_df, agg_function, filename='feature_importance_comparison.png'):
     """
     Plots a colorblind-friendly comparison chart of feature importances.
 
     Parameters:
     importance_df (DataFrame): A DataFrame containing feature importances for different clusters.
+    agg_function (str): The aggregation function to be used ('sum', 'mean', 'min', 'max').
     filename (str, optional): The filename for saving the plot. Defaults to 'feature_importance_comparison.png'.
     """
 
@@ -30,8 +32,16 @@ def plot_feature_importance(importance_df, filename='feature_importance_comparis
     plt.xlabel('Importance', fontsize=18)
     plt.ylabel('Feature', fontsize=18)
 
-    # Set title
-    plt.title('Feature Importance Comparison', fontsize=20)
+    # Dictionary to map aggregation function to a more readable format
+    agg_function_title_map = {
+        'sum': 'Annual Sum of CH$_4$ Flux Feature Importance',
+        'mean': 'Annual Mean of CH$_4$ Flux Feature Importance',
+        'min': 'Annual Minimum of CH$_4$ Flux Feature Importance',
+        'max': 'Annual Maximum of CH$_4$ Flux Feature Importance',
+    }
+    # Set dynamic title based on aggregation function
+    title = agg_function_title_map.get(agg_function, 'Annual CH$_4$ Flux Feature Importance')
+    plt.title(title, fontsize=20)
 
     # Improve legend
     plt.legend(title='Clusters', title_fontsize='16', fontsize='14', loc='upper right')

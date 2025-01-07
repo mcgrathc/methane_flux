@@ -51,7 +51,7 @@ def process_and_cluster(agg_function='sum'):
     # Compute silhouette scores
     models = [
         ("KMeans", KMeans(n_clusters=2)),
-        ("GMM", GaussianMixture(n_components=2, random_state=1)),
+        ("GMM", GaussianMixture(n_components=3, random_state=1)),
         ("DBSCAN", DBSCAN(eps=2, min_samples=5)),
         ("Agglomerative", AgglomerativeClustering(n_clusters=5))
     ]

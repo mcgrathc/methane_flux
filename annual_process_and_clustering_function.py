@@ -276,4 +276,4 @@ def generate_biplot(df, principalDf, clusters, pca, num_cols, cluster_type, algo
     plt.legend(fontsize=16)
 
     # Save the plot with algorithm name in the title
-    plt.savefig(f'{agg_function}_biplot_ann_{algorithm_name}.png', dpi=300)
+    plt.savefig(f'manuscript\\{agg_function}_biplot_ann_{algorithm_name}.png', dpi=300)

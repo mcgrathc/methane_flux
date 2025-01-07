@@ -1,4 +1,10 @@
 *.csv
 *.png
+*.jpg
+*.webp
+*.pdf
+*.pptx
+*.docx
+*.html
 /__pycache__/
 .idea

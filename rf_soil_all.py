@@ -107,6 +107,17 @@ def main(include_soil_data=True):
     plt.scatter(y_test, y_pred, alpha=0.7)
     plt.xlabel('Observed CH4 Flux')
     plt.ylabel('Predicted CH4 Flux')
+    plt.title(f'CH4 Flux Prediction (With Soil Data: {include_soil_data})')
+
+    # Add R² value to the plot
+    plt.text(0.9, 0.1, f'R² = {test_r2:.2f}', ha='right', va='center', transform=plt.gca().transAxes)
+
+    # Add 1:1 line
+    min_val = min(y_test.min(), y_pred.min())
+    max_val = max(y_test.max(), y_pred.max())
+    plt.plot([min_val, max_val], [min_val, max_val], 'r--')
+
+    plt.show()
 
     return {
         'With_soil_data': include_soil_data,
@@ -125,3 +136,4 @@ if __name__ == "__main__":
 
     results_df = pd.DataFrame(results)
     print(results_df)
+
