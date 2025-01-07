@@ -46,7 +46,7 @@ def train_and_visualize_rf_with_hyperparam_tuning(X_train, y_train, X_columns, i
     return best_r2, best_mae, best_rmse, importance_df, best_params, top_5_features, best_rf
 
 def main(include_soil_data=True):
-    data = pd.read_csv('merged_data.csv')
+    data = pd.read_csv('../outputs/merged_data.csv')
     data['TIMESTAMP'] = pd.to_datetime(data['TIMESTAMP'], errors='coerce')
     data['YEAR'] = data['TIMESTAMP'].dt.year
 

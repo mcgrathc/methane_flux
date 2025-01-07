@@ -35,7 +35,7 @@ def train_and_visualize_rf_with_hyperparam_tuning(X_train, y_train, X_columns):
 
 def main():
     # Load data
-    data = pd.read_csv('merged_data.csv')
+    data = pd.read_csv('../outputs/merged_data.csv')
     data['TIMESTAMP'] = pd.to_datetime(data['TIMESTAMP'], errors='coerce')
     data['YEAR'] = data['TIMESTAMP'].dt.year
 

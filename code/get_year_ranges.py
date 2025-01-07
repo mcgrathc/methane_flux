@@ -1,5 +1,5 @@
 import pandas as pd
-from annual_process_and_clustering_function import load_and_preprocess
+from clustering_code.annual_process_and_clustering_function import load_and_preprocess
 
 df_grouped, num_cols = load_and_preprocess('merged_data.csv', agg_function='sum')
 # Convert period to timestamp

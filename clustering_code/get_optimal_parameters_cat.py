@@ -6,7 +6,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import DBSCAN
 from scipy.cluster.hierarchy import dendrogram, linkage
-from annual_process_and_clustering_function_categorical import standardize_data, perform_pca, load_and_preprocess
+from clustering_code.annual_process_and_clustering_function_categorical import standardize_data, perform_pca, load_and_preprocess
 
 
 # Define a function to find the optimal K for KMeans and K-Medoids

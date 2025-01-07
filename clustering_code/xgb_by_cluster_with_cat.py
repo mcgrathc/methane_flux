@@ -2,7 +2,7 @@ from sklearn.cluster import KMeans
 import pandas as pd
 from annual_process_and_clustering_function_categorical import load_and_preprocess, standardize_data, perform_pca
 # Import the new XGBoost training function
-from xgb_function import train_and_visualize_xgb_with_hyperparam_tuning
+from clustering_code.xgb_function import train_and_visualize_xgb_with_hyperparam_tuning
 from random_forest_plotting_function import plot_feature_importance
 
 
